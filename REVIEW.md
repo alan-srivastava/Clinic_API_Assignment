@@ -33,7 +33,7 @@ No way to know when a status changed. Added `updatedAt DateTime @updatedAt` — 
 
 ---
 
-## routes/doctors.js
+## routes/doctor.routes.ts
 
 **10. Slots endpoint never checked existing bookings**
 The biggest user-facing bug. It generated all theoretical slots but never queried `Appointment`, so already-booked slots appeared available. Fixed by querying non-cancelled appointments for that doctor/date, building a `Set` of booked `timeSlot` values, and filtering them out. Cancelled slots are excluded from the booked set so they free back up.
@@ -46,7 +46,7 @@ A nonexistent doctor ID returned a misleading success response with empty slots.
 
 ---
 
-## routes/appointments.js
+## routes/appointment.routes.ts
 
 **13. Token count was not scoped per doctor**
 The count query had no `doctorId` filter, so tokens were shared across all doctors system-wide. Dr. A and Dr. B's patients would get interleaved token numbers from the same sequence. Fixed by adding `doctorId: data.doctorId` to the count query.
@@ -77,7 +77,7 @@ POST that creates a resource should return 201 Created. Changed to `res.status(2
 
 ---
 
-## patient.routes.ts
+## routes/patient.routes.ts
 
 **20. Search was case-sensitive**
 `startsWith: "rahul"` returned nothing when the stored name was `"Rahul"`. Added `mode: 'insensitive'` to the Prisma query.
