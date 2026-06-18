@@ -11,12 +11,18 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
+enum AppointmentStatus {
+    BOOKED
+    COMPLETED
+    CANCELLED
+}
+
 model Doctor {
     id              Int              @id @default(autoincrement())
     name            String
     specialization  String
     phone           String
-    consultationFee Float
+    consultationFee Decimal          @db.Decimal(10, 2)
     createdAt       DateTime         @default(now())
     schedules       DoctorSchedule[]
     appointments    Appointment[]
@@ -25,17 +31,19 @@ model Doctor {
 model DoctorSchedule {
     id           Int    @id @default(autoincrement())
     doctorId     Int
-    dayOfWeek    Int // 0=Sunday, 6=Saturday
-    startTime    String // "09:00"
-    endTime      String // "17:00"
-    slotDuration Int // in minutes (e.g. 15)
+    dayOfWeek    Int
+    startTime    String
+    endTime      String
+    slotDuration Int
     doctor       Doctor @relation(fields: [doctorId], references: [id])
+
+    @@unique([doctorId, dayOfWeek])
 }
 
 model Patient {
     id           Int           @id @default(autoincrement())
     name         String
-    phone        String
+    phone        String        @unique
     dateOfBirth  DateTime?
     gender       String?
     createdAt    DateTime      @default(now())
@@ -43,14 +51,19 @@ model Patient {
 }
 
 model Appointment {
-    id          Int      @id @default(autoincrement())
+    id          Int               @id @default(autoincrement())
     patientId   Int
     doctorId    Int
     date        DateTime
-    timeSlot    String // "09:00"
-    status      String   @default("BOOKED")
-    tokenNumber Int?
-    createdAt   DateTime @default(now())
-    patient     Patient  @relation(fields: [patientId], references: [id])
-    doctor      Doctor   @relation(fields: [doctorId], references: [id])
+    timeSlot    String
+    status      AppointmentStatus @default(BOOKED)
+    tokenNumber Int
+    createdAt   DateTime          @default(now())
+    updatedAt   DateTime          @updatedAt
+    patient     Patient           @relation(fields: [patientId], references: [id])
+    doctor      Doctor            @relation(fields: [doctorId], references: [id])
+
+    @@unique([doctorId, date, tokenNumber])
+    @@unique([doctorId, date, timeSlot])
+    @@index([doctorId, date])
 }
