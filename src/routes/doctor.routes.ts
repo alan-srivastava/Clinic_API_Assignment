@@ -9,11 +9,25 @@ router.get('/:id/slots', async (req: Request, res: Response) => {
         const doctorId = parseInt(req.params.id);
         const { date } = req.query;
 
-        if (!date) {
+        if (isNaN(doctorId)) {
+            return res.status(400).json({ error: 'Invalid doctor id' });
+        }
+
+        if (!date || typeof date !== 'string') {
             return res.status(400).json({ error: 'date query parameter is required' });
         }
 
-        const requestedDate = new Date(date as string);
+        const requestedDate = new Date(date);
+        if (isNaN(requestedDate.getTime())) {
+            return res.status(400).json({ error: 'Invalid date format' });
+        }
+
+        // Confirm doctor exists before doing anything else
+        const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+        if (!doctor) {
+            return res.status(404).json({ error: 'Doctor not found' });
+        }
+
         const dayOfWeek = requestedDate.getDay();
 
         // Get doctor's schedule for that day
@@ -25,11 +39,32 @@ router.get('/:id/slots', async (req: Request, res: Response) => {
             return res.json({ slots: [], message: 'Doctor not available on this day' });
         }
 
-        // Generate all possible slots from schedule
-        const slots = generateTimeSlots(schedule.startTime, schedule.endTime, schedule.slotDuration);
+        // Generate all theoretical slots from the schedule
+        const allSlots = generateTimeSlots(schedule.startTime, schedule.endTime, schedule.slotDuration);
 
-        res.json({ slots });
+        // Find already-booked slots for this doctor on this date
+        const dayStart = new Date(requestedDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(requestedDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const bookedAppointments = await prisma.appointment.findMany({
+            where: {
+                doctorId,
+                date: { gte: dayStart, lte: dayEnd },
+                status: { not: 'CANCELLED' }, // cancelled slots free back up
+            },
+            select: { timeSlot: true },
+        });
+
+        const bookedSlots = new Set(bookedAppointments.map((a) => a.timeSlot));
+
+        // Filter out booked slots — this is the actual fix for Task 4.1
+        const availableSlots = allSlots.filter((slot) => !bookedSlots.has(slot));
+
+        res.json({ slots: availableSlots });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Something went wrong' });
     }
 });
