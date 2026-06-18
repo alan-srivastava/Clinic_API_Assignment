@@ -1,0 +1,56 @@
+// ============================================================
+// PRISMA SCHEMA — Clinic Appointment System
+// ============================================================
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Doctor {
+    id              Int              @id @default(autoincrement())
+    name            String
+    specialization  String
+    phone           String
+    consultationFee Float
+    createdAt       DateTime         @default(now())
+    schedules       DoctorSchedule[]
+    appointments    Appointment[]
+}
+
+model DoctorSchedule {
+    id           Int    @id @default(autoincrement())
+    doctorId     Int
+    dayOfWeek    Int // 0=Sunday, 6=Saturday
+    startTime    String // "09:00"
+    endTime      String // "17:00"
+    slotDuration Int // in minutes (e.g. 15)
+    doctor       Doctor @relation(fields: [doctorId], references: [id])
+}
+
+model Patient {
+    id           Int           @id @default(autoincrement())
+    name         String
+    phone        String
+    dateOfBirth  DateTime?
+    gender       String?
+    createdAt    DateTime      @default(now())
+    appointments Appointment[]
+}
+
+model Appointment {
+    id          Int      @id @default(autoincrement())
+    patientId   Int
+    doctorId    Int
+    date        DateTime
+    timeSlot    String // "09:00"
+    status      String   @default("BOOKED")
+    tokenNumber Int?
+    createdAt   DateTime @default(now())
+    patient     Patient  @relation(fields: [patientId], references: [id])
+    doctor      Doctor   @relation(fields: [doctorId], references: [id])
+}
